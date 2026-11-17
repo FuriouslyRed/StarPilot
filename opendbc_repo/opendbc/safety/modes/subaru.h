@@ -268,6 +268,7 @@ static bool subaru_tx_hook(const CANPacket_t *msg) {
       bool cruise_cancel = (msg->data[7] >> 0) & 1U;
       bool cruise_set = (msg->data[7] >> 1) & 1U;
       bool cruise_resume = (msg->data[7] >> 2) & 1U;
+      bool cruise_brake_active = GET_BIT(msg, 36U);
 
       violation |= (cruise_throttle != SUBARU_LONG_LIMITS.inactive_gas);
       if (subaru_stock_acc_buttons) {
@@ -275,7 +276,7 @@ static bool subaru_tx_hook(const CANPacket_t *msg) {
         // existing cancel request with inactive throttle. It has no SET,
         // throttle, or brake authority.
         violation |= !(cruise_cancel || cruise_resume);
-        violation |= cruise_set;
+        violation |= cruise_set || cruise_brake_active;
       } else {
         // Without stock-ACC assistance, only the cancel request is allowed.
         violation |= (!cruise_cancel);
