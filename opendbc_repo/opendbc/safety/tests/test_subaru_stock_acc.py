@@ -26,4 +26,5 @@ class TestSubaruStockAccResume(unittest.TestCase):
     self.assertFalse(self.safety.safety_tx_hook(self.packet(COUNTER=2, Cruise_Throttle=808, Cruise_Resume=1)))
     self.assertFalse(self.safety.safety_tx_hook(self.packet(COUNTER=3, Cruise_Throttle=1818, Cruise_Set=1)))
     self.assertFalse(self.safety.safety_tx_hook(self.packet(COUNTER=4, Cruise_Throttle=1818, Cruise_Resume=1, Cruise_Set=1)))
-    self.assertFalse(self.safety.safety_tx_hook(self.packet(COUNTER=5, Cruise_Throttle=1818)))
+    self.assertFalse(self.safety.safety_tx_hook(self.packet(COUNTER=5, Cruise_Throttle=1818, Cruise_Resume=1, Cruise_Brake_Active=1)))
+    self.assertFalse(self.safety.safety_tx_hook(self.packet(COUNTER=6, Cruise_Throttle=1818)))
