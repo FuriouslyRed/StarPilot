@@ -26,7 +26,7 @@ def create_steering_status(packer):
   return packer.make_can_msg("ES_LKAS_State", 0, {})
 
 
-def create_es_distance(packer, frame, es_distance_msg, bus, pcm_cancel_cmd, long_enabled = False, brake_cmd = False, cruise_throttle = 0):
+def create_es_distance(packer, frame, es_distance_msg, bus, pcm_cancel_cmd, long_enabled = False, brake_cmd = False, cruise_throttle = 0, stock_acc_button = 0):
   values = {s: es_distance_msg[s] for s in [
     "CHECKSUM",
     "Signal1",
@@ -63,6 +63,19 @@ def create_es_distance(packer, frame, es_distance_msg, bus, pcm_cancel_cmd, long
   if pcm_cancel_cmd:
     values["Cruise_Cancel"] = 1
     values["Cruise_Throttle"] = 1818 # inactive throttle
+
+  if stock_acc_button == 1:
+    values["Cruise_Resume"] = 1
+    values["Cruise_Set"] = 0
+    values["Cruise_Cancel"] = 0
+    values["Cruise_Throttle"] = 1818
+    values["Cruise_Brake_Active"] = 0
+  elif stock_acc_button == 2:
+    values["Cruise_Set"] = 1
+    values["Cruise_Resume"] = 0
+    values["Cruise_Cancel"] = 0
+    values["Cruise_Throttle"] = 1818
+    values["Cruise_Brake_Active"] = 0
 
   return packer.make_can_msg("ES_Distance", bus, values)
 

@@ -207,6 +207,17 @@ class CarController(CarControllerBase):
 
     from opendbc.car.subaru.software_cruise_sender import send as send_software_cruise
     can_sends.extend(send_software_cruise(self, CC, CS, now_nanos))
+
+    resume_sng_command = int(getattr(self, 'resume_sng_command', 0))
+    resume_sng_command_ns = int(getattr(self, 'resume_sng_command_ns', 0))
+    if (resume_sng_command == 1 and not pcm_cancel_cmd and
+        0 < resume_sng_command_ns <= now_nanos and now_nanos - resume_sng_command_ns <= 50_000_000 and
+        self.frame % 2 == 0):
+      bus = CanBus.alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else CanBus.main
+      can_sends.append(subarucan.create_es_distance(self.packer, CS.es_distance_msg["COUNTER"] + 1,
+                                                    CS.es_distance_msg, bus, False,
+                                                    stock_acc_button=1))
+      self.resume_sng_command = 0
     from opendbc.car.subaru.sng_sender import send as send_sng
     can_sends.extend(send_sng(self, CC, CS, now_nanos))
 

@@ -1,6 +1,6 @@
 """Parked preference for Dom global Subaru stop and go."""
 
-from opendbc.car.subaru.sng import eligible
+from opendbc.car.subaru.sng import eligible, resume_eligible
 from openpilot.starpilot.saved_document import commit_exact
 from openpilot.starpilot.vehicle_selection import read_selection
 
@@ -10,7 +10,8 @@ KEY = 'SubaruSNG'
 def capability(owner):
   cp = owner.vehicle_params()
   selection = read_selection(owner.params)
-  return (str(cp.carFingerprint), str(cp.brand), selection.raw) if eligible(cp) and selection.readable and selection.valid else None
+  supported = cp is not None and (eligible(cp) or resume_eligible(cp))
+  return (str(cp.carFingerprint), str(cp.brand), selection.raw) if supported and selection.readable and selection.valid else None
 
 
 def apply(owner, request):

@@ -6,7 +6,7 @@ from opendbc.car.structs import CarParams
 from opendbc.car.fw_versions import match_fw_to_car_exact
 from opendbc.car.subaru.fingerprints import FW_VERSIONS
 from opendbc.car.subaru.interface import CarInterface
-from opendbc.car.subaru.values import CAR
+from opendbc.car.subaru.values import CAR, SubaruSafetyFlags
 
 RESTORED = [
   ('SUBARU_ASCENT_2023', 'abs', 1968, 'a520250301'),
@@ -59,6 +59,8 @@ class TestSupportedSubaruFirmware(unittest.TestCase):
   def test_existing_stock_admission_and_disabled_alpha_are_preserved(self):
     words = {CAR.SUBARU_ASCENT_2023: 177, CAR.SUBARU_CROSSTREK_2025: 17, CAR.SUBARU_IMPREZA_2025: 17, CAR.SUBARU_LEGACY_2025: 145}
     for platform, word in words.items():
+      if platform in (CAR.SUBARU_CROSSTREK_2025, CAR.SUBARU_IMPREZA_2025):
+        word |= SubaruSafetyFlags.STOCK_ACC_BUTTONS.value
       for alpha in (False, True):
         for release in (False, True):
           with self.subTest(platform=platform, alpha=alpha, release=release):

@@ -78,6 +78,7 @@ class SubaruSafetyFlags(IntFlag):
   AVH_STARTUP = 1024
   STOP_START_BUTTON = 256
   ASCENT_LKAS_ALERT = 2048
+  STOCK_ACC_BUTTONS = 8192
 
 
 class SubaruFlags(IntFlag):

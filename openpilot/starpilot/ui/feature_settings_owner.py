@@ -992,7 +992,7 @@ class FeatureSettingsOwner:
       subaru_sng_capability = self._subaru_sng_capability()
       if subaru_sng_capability is not None:
         row = self._bool_row("SubaruSNG", "Stop-and-Go Assistance", parked and self.authority("parked_preferences"),
-                             "Assists lead departure and standstill hold with factory ACC. Applies after the next startup.")
+                             "Presses factory RESUME when a stopped lead departs; factory ACC keeps throttle and brake control. Applies after the next startup.")
         rows.append(replace(row, available=row.available and self._readable("SubaruSNG"), capability=subaru_sng_capability))
       software_capability = self._subaru_software_capability()
       if software_capability is not None:

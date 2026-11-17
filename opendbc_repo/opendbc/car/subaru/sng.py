@@ -2,10 +2,46 @@
 
 from opendbc.car import structs
 from opendbc.car.subaru.stock_aol import IMPREZA_MAIN_AOL
-from opendbc.car.subaru.values import CAR, SubaruFlags
+from opendbc.car.subaru.values import CAR, SubaruFlags, SubaruSafetyFlags
 
 STOP_AND_GO = 8
 SUPPORTED = frozenset((CAR.SUBARU_ASCENT, CAR.SUBARU_IMPREZA, CAR.SUBARU_IMPREZA_2020, CAR.SUBARU_FORESTER))
+RESUME_SUPPORTED = frozenset((CAR.SUBARU_CROSSTREK_2025, CAR.SUBARU_IMPREZA_2025))
+
+
+def resume_eligible(cp):
+  """Gen2 stock-ACC cars that can accept a factory RESUME copy.
+
+  The stock ACC remains the longitudinal owner. This path only needs the
+  resume button bit in ES_Distance; it never enables throttle or brake TX.
+  """
+  try:
+    word = int(cp.safetyConfigs[0].safetyParam) if len(cp.safetyConfigs) == 1 else -1
+    base = word & ~int(SubaruSafetyFlags.STOCK_ACC_BUTTONS)
+    return bool(
+      cp.brand == 'subaru'
+      and cp.carFingerprint in RESUME_SUPPORTED
+      and cp.pcmCruise
+      and not cp.openpilotLongitudinalControl
+      and not cp.alphaLongitudinalAvailable
+      and not cp.passive
+      and not cp.dashcamOnly
+      and not cp.notCar
+      and cp.transmissionType != structs.CarParams.TransmissionType.manual
+      and cp.alternativeExperience in (0, 32)
+      and int(cp.flags) & ~int(SubaruFlags.HAS_BSM | SubaruFlags.SEND_INFOTAINMENT | SubaruFlags.SMOOTHING_BOUND) ==
+          int(CAR[cp.carFingerprint].config.flags)
+      and len(cp.safetyConfigs) == 1
+      and cp.safetyConfigs[0].safetyModel == structs.CarParams.SafetyModel.subaru
+      and base == (int(SubaruSafetyFlags.GEN2) | int(SubaruSafetyFlags.LKAS_ANGLE))
+      and bool(word & int(SubaruSafetyFlags.STOCK_ACC_BUTTONS))
+    )
+  except (AttributeError, TypeError, ValueError, IndexError, KeyError):
+    return False
+
+
+def resume_selected(cp):
+  return resume_eligible(cp)
 
 
 def eligible(cp):

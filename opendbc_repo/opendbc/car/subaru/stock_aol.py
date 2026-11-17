@@ -17,6 +17,7 @@ def qualified(cp, *, marked_only=False):
       cp.alternativeExperience not in ((AOL_EXPERIENCE,) if marked_only else (0, AOL_EXPERIENCE))):
     return False
   word = cp.safetyConfigs[0].safetyParam
+  word &= ~int(SubaruSafetyFlags.STOCK_ACC_BUTTONS)
   main_aol = bool(word & IMPREZA_MAIN_AOL)
   if main_aol and (cp.carFingerprint != CAR.SUBARU_IMPREZA_2020 or cp.alternativeExperience != AOL_EXPERIENCE):
     return False
@@ -55,7 +56,7 @@ def qualified(cp, *, marked_only=False):
     if cp.carFingerprint == CAR.SUBARU_IMPREZA_2020:
       expected |= word & 512
   config = cp.safetyConfigs[0]
-  return config.safetyModel == structs.CarParams.SafetyModel.subaru and config.safetyParam == expected | (IMPREZA_MAIN_AOL if main_aol else 0)
+  return config.safetyModel == structs.CarParams.SafetyModel.subaru and word == expected | (IMPREZA_MAIN_AOL if main_aol else 0)
 
 
 def temporary_restriction(cp, state):

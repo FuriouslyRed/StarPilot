@@ -84,6 +84,7 @@ static bool subaru_lkas_angle = false;
 static bool subaru_fixed_angle_limits = false;
 static bool subaru_angle_main_bus = false;
 static bool subaru_angle_invalid = false;
+static bool subaru_stock_acc_buttons = false;
 
 static uint32_t subaru_get_checksum(const CANPacket_t *msg) {
   return (uint8_t)msg->data[0];
@@ -265,11 +266,21 @@ static bool subaru_tx_hook(const CANPacket_t *msg) {
     if (msg->addr == MSG_SUBARU_ES_Distance) {
       int cruise_throttle = (GET_BYTES_LE(msg, 2, 2) & 0x1FFFU);
       bool cruise_cancel = (msg->data[7] >> 0) & 1U;
+      bool cruise_set = (msg->data[7] >> 1) & 1U;
+      bool cruise_resume = (msg->data[7] >> 2) & 1U;
 
-      // If openpilot is not controlling long, only allow ES_Distance for cruise cancel requests,
-      // (when Cruise_Cancel is true, and Cruise_Throttle is inactive)
       violation |= (cruise_throttle != SUBARU_LONG_LIMITS.inactive_gas);
-      violation |= (!cruise_cancel);
+      if (subaru_stock_acc_buttons) {
+        // Resume-only stock-ACC assistance may send the factory RESUME or the
+        // existing cancel request with inactive throttle. It has no SET,
+        // throttle, or brake authority.
+        violation |= !(cruise_cancel || cruise_resume);
+        violation |= cruise_set;
+      } else {
+        // Without stock-ACC assistance, only the cancel request is allowed.
+        violation |= (!cruise_cancel);
+        violation |= cruise_set || cruise_resume;
+      }
     }
 
     if (violation){
@@ -300,7 +311,7 @@ static safety_config subaru_init(uint16_t raw_param) {
 #endif
   const bool stop_start = ((param == 401U) || (param == 465U) || (avh && (param == 1425U))) &&
     (((unsigned int)alternative_experience == 0U) || ((unsigned int)alternative_experience == 32U));
-  const uint16_t base_param = stop_start ? ((param == 465U) ? 209U : 145U) : (avh ? 145U : param);
+  const uint16_t base_param = stop_start ? ((param == 465U) ? 209U : 145U) : (avh ? 145U : param & ~8192U);
   static const CanMsg SUBARU_TX_MSGS[] = {
     SUBARU_BASE_TX_MSGS(SUBARU_MAIN_BUS, MSG_SUBARU_ES_LKAS)
     SUBARU_COMMON_TX_MSGS(SUBARU_MAIN_BUS)
@@ -384,6 +395,7 @@ static safety_config subaru_init(uint16_t raw_param) {
   subaru_gen2 = GET_FLAG(param, SUBARU_PARAM_GEN2);
   subaru_lkas_angle = GET_FLAG(param, SUBARU_PARAM_LKAS_ANGLE);
   subaru_fixed_angle_limits = GET_FLAG(param, SUBARU_PARAM_FIXED_ANGLE);
+  subaru_stock_acc_buttons = GET_FLAG(param, 8192U);
   subaru_angle_invalid = (subaru_lkas_angle && (base_param != (SUBARU_PARAM_GEN2 | SUBARU_PARAM_LKAS_ANGLE)) &&
                           (base_param != (SUBARU_PARAM_GEN2 | SUBARU_PARAM_LKAS_ANGLE | SUBARU_PARAM_FIXED_ANGLE)) &&
                           (base_param != (SUBARU_PARAM_GEN2 | SUBARU_PARAM_LKAS_ANGLE | SUBARU_PARAM_FIXED_ANGLE | SUBARU_PARAM_ANGLE_MAIN_BUS)) && !ascent_alert && !subaru_forester_angle && !subaru_d_platform) ||
@@ -401,9 +413,10 @@ static safety_config subaru_init(uint16_t raw_param) {
   subaru_aol_reset();
   subaru_aol_gear_bus = (uint8_t)(subaru_d_platform ? SUBARU_ALT_BUS : SUBARU_MAIN_BUS);
   subaru_aol_enabled = ((unsigned int)alternative_experience == 32U) &&
-    ((param == 209U) || (param == 465U) || (param == 16U) || (param == 0U) || (param == 1U) || (param == 17U) || (param == 145U) ||
-     avh || (param == 177U) || (param == 401U) || (param == 8U) || (param == 520U) || (param == 512U) || (param == 2225U));
-  subaru_aol_main_arm = subaru_aol_enabled && ((param == 17U) || impreza_main || subaru_d_platform);
+    ((base_param == 209U) || (base_param == 465U) || (base_param == 16U) || (base_param == 0U) || (base_param == 1U) ||
+     (base_param == 17U) || (base_param == 145U) || avh || (base_param == 177U) || (base_param == 401U) ||
+     (base_param == 8U) || (base_param == 520U) || (base_param == 512U) || (base_param == 2225U));
+  subaru_aol_main_arm = subaru_aol_enabled && ((base_param == 17U) || impreza_main || subaru_d_platform);
   if (subaru_aol_enabled) {
     static const AolSafetyPolicy policy = {
       .reset = subaru_aol_reset,

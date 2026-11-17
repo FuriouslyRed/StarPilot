@@ -23,6 +23,7 @@ class CarState(CarStateBase):
     self.sng_lead_present = False
     self.sng_lead_ready = False
     self.close_distance = 0.0
+    self.stock_acc_buttons = {"Set": 0, "Resume": 0, "Cancel": 0}
     self.software_buttons = dict.fromkeys(("Main", "Set", "Resume"), 0)
     self.software_button_source_ns = 0
     self.software_button_counter = None
@@ -160,6 +161,23 @@ class CarState(CarStateBase):
     if not (self.CP.flags & SubaruFlags.HYBRID):
       self.es_distance_msg = copy.copy(cp_es_distance.vl["ES_Distance"])
 
+    stock_acc_eligible = (self.CP.carFingerprint in (CAR.SUBARU_CROSSTREK_2025, CAR.SUBARU_IMPREZA_2025) and
+                          self.CP.pcmCruise and not self.CP.openpilotLongitudinalControl)
+    if stock_acc_eligible:
+      # 2025 stock ACC exposes its Set/Resume/Cancel edges in ES_Distance.
+      stock_events = []
+      for signal, kind in (
+          ("Set", structs.CarState.ButtonEvent.Type.decelCruise),
+          ("Resume", structs.CarState.ButtonEvent.Type.accelCruise),
+          ("Cancel", structs.CarState.ButtonEvent.Type.cancel)):
+        pressed = int(cp_es_distance.vl["ES_Distance"].get(f"Cruise_{signal}", 0))
+        if pressed and not self.stock_acc_buttons[signal]:
+          stock_events.append(structs.CarState.ButtonEvent(type=kind, pressed=True))
+        elif not pressed and self.stock_acc_buttons[signal]:
+          stock_events.append(structs.CarState.ButtonEvent(type=kind, pressed=False))
+        self.stock_acc_buttons[signal] = pressed
+      ret.buttonEvents = stock_events
+
     from opendbc.car.subaru.software_cruise import selected
     if selected(self.CP):
       buttons = cp.vl["Cruise_Buttons"]
@@ -179,8 +197,8 @@ class CarState(CarStateBase):
       ret.buttonEvents = button_events
       ret.cruiseState.speedCluster = ret.cruiseState.speed
 
-    from opendbc.car.subaru.sng import selected as sng_selected
-    if sng_selected(self.CP):
+    from opendbc.car.subaru.sng import resume_selected, selected as sng_selected
+    if sng_selected(self.CP) or resume_selected(self.CP):
       cp.vl["Brake_Pedal"]
       lead = cp_es_distance.vl["ES_Distance"]
       self.close_distance = float(lead["Close_Distance"])
